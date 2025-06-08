@@ -85,10 +85,15 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	}
 
 	assetPath := getAssetPath(mediaType)
+	aspectRatio, err := cfg.getVideoAspectRatio(tempFile.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't get video aspect ratio", err)
+		return
+	}
 
 	params := s3.PutObjectInput{
 		Bucket:      aws.String(cfg.s3Bucket),
-		Key:         aws.String(assetPath),
+		Key:         aws.String(aspectRatio + "/" + assetPath),
 		Body:        tempFile,
 		ContentType: aws.String(mediaType),
 	}
@@ -98,7 +103,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	videoURL := cfg.getObjectURL(assetPath)
+	videoURL := cfg.getObjectURL(aspectRatio, assetPath)
 	video.VideoURL = &videoURL
 	err = cfg.db.UpdateVideo(video)
 	if err != nil {
